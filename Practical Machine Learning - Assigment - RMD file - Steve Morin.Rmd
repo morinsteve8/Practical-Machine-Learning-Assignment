@@ -1,0 +1,176 @@
+---
+title: "Practical Machine Learning"
+author: "Steve Morin"
+date: "November 19, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Synopsis
+
+This project will predict the manner in which exercise was done from a test data set. The model will be trained using labeled data and an evaluation will be done of the most accurate modelling method.The model that is generated will be used to predict the 'classe' in the test data set.Prediction outcomes will be evaluated by calculating the confusion matrix for the training/test data sets from the provided training data.
+
+
+### Load Libraries
+
+```{r}
+## Include required libraries
+library(caret)
+library(RColorBrewer)
+library(rattle)
+library(randomForest)
+library(rpart)
+library(rpart.plot)
+options(warn=-1)
+```
+
+### Load & Prepare Data
+
+```{r}
+# Set the seed
+
+set.seed(11111)
+```
+
+```{r}
+# Read testing data
+
+testingData<-read.csv("D:\\Coursera\\Data Science Specialization\\Practical Machine Learning\\Assignment\\pml-testing.csv")
+```
+
+```{r}
+# Read training data
+trainingData<-read.csv("D:\\Coursera\\Data Science Specialization\\Practical Machine Learning\\Assignment\\pml-training.csv")
+
+```
+
+
+```{r}
+# Partition the training data
+trainIndex<-createDataPartition(trainingData$classe,p=0.6,list=FALSE)
+
+```
+
+
+```{r}
+# Subset the training data
+
+trainDataPart<-trainingData[trainIndex, ]
+
+```
+
+
+```{r}
+# Subset the testing data
+
+testDataPart<-trainingData[-trainIndex, ]
+
+```
+
+```{r}
+
+# Find columns with near zero variance
+
+varNearZero <- nearZeroVar(trainDataPart)
+```
+```{r}
+# Remove columns identified as near zero from the training and testing data sets
+
+trainDataPart<-trainDataPart[,-varNearZero]
+testDataPart<-testDataPart[,-varNearZero]
+```
+
+```{r}
+# Find columns with greater than 75% NAs
+
+columnsWithNA <- sapply(trainDataPart, function(x) mean(is.na(x))) > 0.75
+```
+
+```{r}
+# Remove columns with greater than 75% NAs
+
+trainDataPart<-trainDataPart[,!columnsWithNA]
+testDataPart<-testDataPart[,!columnsWithNA]
+```
+
+
+```{r}
+
+# Remove columns 1 - 5 from the train/test datasets as they are cannot be used in the analysis
+
+trainDataPart<-trainDataPart[,-(1:5)]
+testDataPart<-testDataPart[,-(1:5)]
+```
+
+#-----------------------------------------------------------------
+
+### Decision Tree Method
+
+```{r}
+
+# Create the Decision Tree
+
+rpartModel <- rpart(classe ~ .,data=trainDataPart,method="class")
+
+# Plot the Decision Tree
+
+fancyRpartPlot(rpartModel)
+```
+
+
+```{r}
+
+# Apply model to test data to obtain predicted classe
+
+predictTestDataDT <- predict(rpartModel, newdata=testDataPart, type="class")
+
+```
+
+
+```{r}
+
+# Calculate the confusion matrix
+
+confMatrixDT <- confusionMatrix(predictTestDataDT, testDataPart$classe)
+confMatrixDT
+
+```
+#-----------------------------------------------------------------
+
+### Random Forest Method
+
+The second method tried was Random Forest using cross-validation for 3 iterations. Cross-validation is used to avoid overfitting the model and helps to make the model more generalizable to other data sets.
+
+
+```{r}
+
+# Random Forest Method
+
+RFModel <- train(classe ~ ., data=trainDataPart, method="rf",trControl=trainControl(method="cv", number=3, verboseIter=FALSE))
+
+RFModel$finalModel
+
+```
+
+```{r}
+
+# Prediction based on Test dataset with labels
+
+predictTestDataRF <- predict(RFModel, newdata=testDataPart)
+confMatrixRF <- confusionMatrix(predictTestDataRF, testDataPart$classe)
+confMatrixRF
+
+# Perform final prediction based on Test dataset without labels
+
+predictFinalTestRF <- predict(RFModel, newdata=testingData)
+predictFinalTestRF
+```
+### Summary
+
+The Random Forest method is more accurate than the Decision Tree method in this case acheiving greater than 99% accuracy. As a result we used it to do the final prediction on the 20 original test cases.
+
+#--------------------- End of Assignment ----------------------
+```
